@@ -14,7 +14,7 @@ from datetime import datetime
 import requests
 import discogs_client
 from requests_oauthlib import OAuth1
-from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
+from spotipy.oauth2 import SpotifyOAuth
 
 
 def setup():
@@ -167,6 +167,16 @@ def find_user_playlist(playlist_name, song_count, sp, offset=0):
 
     return goal['id']
 
+def get_album_year(album_ids, albums, sp):
+    """ Get the album release year. """
+    results = sp.albums(album_ids)
+
+    for obj in results['albums']:
+        ix = next(i for i, item in enumerate(albums['albums']) if item['id'] == obj['id'])
+        albums['albums'][ix]['year'] = obj['release_date'][:4]
+
+    return [], albums
+
 def get_albums(pid, sp, offset=0):
     """ Retrieve album information from Spotify api. """
     fields = "items(added_at, track(album(name, id)), track.artists(name)), next"
@@ -180,6 +190,9 @@ def get_albums(pid, sp, offset=0):
     if 'time_accessed' in albums:
         last_time = albums['time_accessed']
 
+    # store ids so we can easily get album release year
+    album_ids = []
+
     for item in results['items']:
         timestamp = datetime.strptime(item['added_at'], '%Y-%m-%dT%H:%M:%SZ').timestamp()
         info = item['track']
@@ -190,13 +203,19 @@ def get_albums(pid, sp, offset=0):
         
         name = info['album']['name']
         spid = info['album']['id']
+        album_ids.append(spid)
+
+        # ensure that we have not seen this album before
         index = next((i for i, item in enumerate(albums['albums']) if spid == item['id']), None)
         added = next((i for i in (albums['added'] + albums['not_in_discogs']) if spid == i['id']), None)
         
+        # if we have and it is a new song since last check, update song count
         if index is not None and added is None:
             if timestamp > last_time:
                 albums['albums'][index]['song_count'] += 1
                 albums['albums'][index]['artists'] = list(set(artists) & set(albums['albums'][index]['artists']))
+        
+        # else, we have a new album
         elif added is None:
             album_info = {
                 'name': name,
@@ -207,9 +226,19 @@ def get_albums(pid, sp, offset=0):
             }
             albums['albums'].append(album_info)
 
+        # query capped at 20
+        if len(album_ids) == 20:
+            album_ids, albums = get_album_year(album_ids, albums, sp)
+
+    # get remaining album release dates
+    if len(album_ids) != 0:
+        album_ids, albums = get_album_year(album_ids, albums, sp)
+
+    # write data ahead of time to avoid recursive mess
     with open('cache.json', 'w') as outfile:
         outfile.write(json.dumps(albums, indent=4))
     
+    # do again until we have every album in playlist
     if results['next'] is not None:
         get_albums(pid, sp, offset=offset+100)
     else:
@@ -217,13 +246,22 @@ def get_albums(pid, sp, offset=0):
         with open('cache.json', 'w') as outfile:
             outfile.write(json.dumps(albums, indent=4))
 
-def get_album_id(album, user_creds):
+def get_album_id(album, user_creds, new=True):
     """ Retrieve album information from Discogs. """
     
+    # try searching without artist name, as an edge case
+    # see: STRFKR
+    if not new:
+        artist = ""
+    
+    else:
+        artist = album['artists'][0]
+
     params = {
         "release_title": album['name'],
-        "artist": album['artists'][0],
-        "format": "Vinyl",
+        "artist": artist,
+        "year": album['year'],
+        "format": "Vinyl LP Album",
         "country": "US",
         "type": "release"
     }
@@ -234,14 +272,24 @@ def get_album_id(album, user_creds):
     auth = OAuth1(user_creds['discogs_ckey'], user_creds['discogs_csecret'],
                   user_creds['user_token'], user_creds['user_secret'])
 
+    # query each album in discogs api
     search = requests.get(url, params=params, auth=auth).json()
+    
+    with open("test.json", 'w') as outfile:
+        outfile.write(json.dumps(search, indent=2))
 
-    # return -1 on album dne
+    # return -1 on album dne, but not before trying once more
     if len(search['results']) == 0:
-        return -1
+        
+        if not new:
+            return -1
+        
+        discogs_id = get_album_id(album, user_creds, False)
 
     # for simplicity, we will take the first result
-    discogs_id = search['results'][0]['id']
+    else:
+        discogs_id = search['results'][0]['id']
+    
 
     return discogs_id
 
@@ -249,11 +297,13 @@ def add_to_wishlist(album, username, user_creds):
     """ Add an album to the user's Discogs wantlist. """
     try:
         discogs_id = album['discogs_id']
+    
     except KeyError:    
         discogs_id = get_album_id(album, user_creds)
 
     # in the case of an album that may end up in Discogs later
     if discogs_id == -1:
+        
         album['attempts'] += 1
         
         # we will try the album 5 times before giving up 
@@ -262,6 +312,7 @@ def add_to_wishlist(album, username, user_creds):
     
     # finding a real id allows us to put to wishlist 
     else:
+        
         album['discogs_id'] = discogs_id
 
         # TODO: change how we store our consumer key and secret
@@ -273,10 +324,12 @@ def add_to_wishlist(album, username, user_creds):
 
         # for any discogs error we will return -2 
         if results.status_code != 201:
+            
             print("Error in adding album to wishlist")
             album['attempts'] = -2
         
         else:
+            
             album['attempts'] = 0
 
     return album
@@ -295,7 +348,7 @@ def make_vinyl_list(song_count_criteria, username, user_creds):
         if album['song_count'] >= song_count_criteria:
             
             album = add_to_wishlist(album, username, user_creds)
-            
+
             if album['attempts'] == 0:
                 data['added'].append(album)
                 del_index.append(index)
