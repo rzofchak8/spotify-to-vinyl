@@ -1,7 +1,7 @@
 ## Current plan for future changes
 ---
 
-1. self rate-limit because discogs api is very slow (60 requests per min), refine search results
+1. self rate-limit because discogs api is very slow (60 requests per min), may need to rate-limit spotify api queries as well
  - usable after this
 
 2. transform to observer pattern so we only update on playlist change detected (is this possible?)
