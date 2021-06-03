@@ -13,6 +13,7 @@ import spotipy
 import requests
 import discogs_client
 from requests_oauthlib import OAuth1
+from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth
 
 
@@ -93,7 +94,7 @@ def authorize_discogs_user(url, d_api):
     # TODO: fix credentials
     # authenticate user through discogs api library, save details
     token, secret = d_api.get_access_token(verifier)
-    
+
     with open("credentials.txt", 'a') as outfile:
         outfile.write("Token: " + token + '\n')
         outfile.write("Secret: " + secret + '\n')
@@ -116,14 +117,14 @@ def get_discogs_session(user_creds):
 
         d_api = discogs_client.Client('my_user_agent/1.0', consumer_key=user_creds['discogs_ckey'],
                                       consumer_secret=user_creds['discogs_csecret'])
-        
+
         url = d_api.get_authorize_url(user_creds['discogs_auth_url'])[2]
         token, secret = authorize_discogs_user(url, d_api)
 
     url = "https://api.discogs.com/oauth/identity"
     auth = OAuth1(user_creds['discogs_ckey'],
                   user_creds['discogs_csecret'], token, secret)
-    
+
     username = requests.get(url, auth=auth).json()
 
     return username['username']
@@ -134,13 +135,13 @@ def find_user_playlist(playlist_name, song_count, sp_api, offset=0):
     try:
         with open("cache.json", 'r') as infile:
             playlist_info = json.load(infile)
-        
+
         if playlist_info['playlist'].lower() == playlist_name:
-            
+
             return playlist_info['spotify_id']
-    
+
     except ValueError:
-        
+
         playlist_info = {}
 
     results = sp_api.current_user_playlists(offset=offset)
@@ -152,14 +153,14 @@ def find_user_playlist(playlist_name, song_count, sp_api, offset=0):
     if goal is None:
         if results['next'] is not None:
             find_user_playlist(playlist_name, song_count, sp_api, offset=offset+50)
-        
+
         else:
             print("Playlist cannot be found :(")
             return -1
 
     # playlist found, sanity check to ensure the playlist hasn't been seen before
     elif 'id' not in playlist_info or playlist_info['id'] != goal['id']:
-        
+
         playlist_info = {
             "playlist":       goal['name'],
             "song_count":     song_count,
@@ -178,10 +179,18 @@ def find_user_playlist(playlist_name, song_count, sp_api, offset=0):
 
 def get_album_year(album_ids, albums, sp_api):
     """Get the album release year."""
-    results = sp_api.albums(album_ids)
+    # basic rate limiting handling
+    while True:
+        try:
+            results = sp_api.albums(album_ids)
+            break
+
+        except SpotifyException as err:
+            rate_limit = err.headers['Retry-After']
+            time.sleep(rate_limit)
 
     for obj in results['albums']:
-        
+
         idx = next(i for i, item in enumerate(albums['albums']) if item['id'] == obj['id'])
         albums['albums'][idx]['year'] = obj['release_date'][:4]
 
@@ -206,7 +215,7 @@ def get_albums(pid, sp_api, offset=0):
     album_ids = []
 
     for item in results['items']:
-        
+
         timestamp = datetime.strptime(item['added_at'], '%Y-%m-%dT%H:%M:%SZ').timestamp()
         info = item['track']
 
@@ -224,7 +233,7 @@ def get_albums(pid, sp_api, offset=0):
 
         # if we have and it is a new song since last check, update song count
         if index is not None and added is None:
-            
+
             if timestamp > last_time:
                 albums['albums'][index]['song_count'] += 1
                 albums['albums'][index]['artists'] = list(set(artists) &
@@ -232,7 +241,7 @@ def get_albums(pid, sp_api, offset=0):
 
         # else, we have a new album
         elif added is None:
-            
+
             album_info = {
                 'name':       info['album']['name'],
                 'id':         info['album']['id'],
@@ -240,7 +249,7 @@ def get_albums(pid, sp_api, offset=0):
                 'attempts':   0,
                 'artists':    artists
             }
-            
+
             albums['albums'].append(album_info)
 
         # query capped at 20
@@ -258,7 +267,7 @@ def get_albums(pid, sp_api, offset=0):
     # do again until we have every album in playlist
     if results['next'] is not None:
         get_albums(pid, sp_api, offset=offset+100)
-    
+
     else:
         albums['time_accessed'] = time.time()
         with open("cache.json", 'w') as outfile:
@@ -319,6 +328,9 @@ def add_to_wishlist(album, username, user_creds):
     except KeyError:
         discogs_id = get_album_id(album, user_creds)
 
+    # self rate-limiting for discogs api
+    time.sleep(0.7)
+
     # in the case of an album that may end up in Discogs later
     if discogs_id == -1:
 
@@ -359,7 +371,7 @@ def make_vinyl_list(song_count_criteria, username, user_creds):
         data = json.load(infile)
 
     del_index = []
-    
+
     for album in data['albums']:
 
         index = data['albums'].index(album)
@@ -376,8 +388,8 @@ def make_vinyl_list(song_count_criteria, username, user_creds):
                 data['not_in_discogs'].append(album)
                 del_index.append(index)
 
-    for i in sorted(del_index, reverse=True):
-        data['albums'].pop(i)
+    for album in data['added'] + data['not_in_discogs']:
+        data['albums'].remove(album)
 
     with open("cache.json", 'w') as outfile:
         outfile.write(json.dumps(data, indent=4))

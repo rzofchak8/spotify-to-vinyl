@@ -1,11 +1,10 @@
 ## Current plan for future changes
 ---
 
-1. self rate-limit because discogs api is very slow (60 requests per min), may need to rate-limit spotify api queries as well
- - usable after this
- *note*: spotify status code 429 - perhaps query and wait if need be...  discogs, timeout requests per each second
+1. transform to observer pattern so we only update on playlist change detected (is this possible?)
 
-2. transform to observer pattern so we only update on playlist change detected (is this possible?)
+2. implement script to start on startup
+ - would require observer pattern to be completed
 
 3. host backend essentially for query request, in order to hide the consumer keys
  - would signify the completion of initial idea
