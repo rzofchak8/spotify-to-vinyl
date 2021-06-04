@@ -32,7 +32,7 @@ def setup():
     except (ValueError, KeyError):
         print("Welcome! Please enter a playlist that you want to pull vinyl" +
               " from (you must own or follow this playlist).")
-
+        print("This program will run once a day, on startup.")
         playlist_name = input("playlist name: ").lower()
 
         criteria = int(input("How many songs from an album should the " +
@@ -102,7 +102,7 @@ def authorize_discogs_user(url, d_api):
     return token, secret
 
 
-# TODO: no longer correct implememtation, need to fix
+# TODO: no longer correct implememtation, need to fix consumer keys and secrets
 def get_discogs_session(user_creds):
     """Get or instantiate Discogs API session, return username."""
     try:
@@ -180,6 +180,7 @@ def find_user_playlist(playlist_name, song_count, sp_api, offset=0):
 def get_album_year(album_ids, albums, sp_api):
     """Get the album release year."""
     # basic rate limiting handling
+
     while True:
         try:
             results = sp_api.albums(album_ids)
@@ -223,8 +224,6 @@ def get_albums(pid, sp_api, offset=0):
         for artist in info['artists']:
             artists.append(artist['name'])
 
-        album_ids.append(info['album']['id'])
-
         # ensure that we have not seen this album before
         index = next((i for i, item in enumerate(albums['albums'])
                       if info['album']['id'] == item['id']), None)
@@ -251,6 +250,7 @@ def get_albums(pid, sp_api, offset=0):
             }
 
             albums['albums'].append(album_info)
+            album_ids.append(info['album']['id'])
 
         # query capped at 20
         if len(album_ids) == 20:
@@ -336,8 +336,8 @@ def add_to_wishlist(album, username, user_creds):
 
         album['attempts'] += 1
 
-        # we will try the album 5 times before giving up
-        if album['attempts'] > 5:
+        # we will try the album 10 times before giving up
+        if album['attempts'] > 10:
             album['attempts'] = -1
 
     # finding a real id allows us to put to wishlist
@@ -375,6 +375,7 @@ def make_vinyl_list(song_count_criteria, username, user_creds):
     for album in data['albums']:
 
         index = data['albums'].index(album)
+        
         # add the album if it fits our criteria, record results
         if album['song_count'] >= song_count_criteria:
 
@@ -388,8 +389,9 @@ def make_vinyl_list(song_count_criteria, username, user_creds):
                 data['not_in_discogs'].append(album)
                 del_index.append(index)
 
-    for album in data['added'] + data['not_in_discogs']:
-        data['albums'].remove(album)
+    # remove any albums that were added
+    for i in sorted(del_index, reverse=True):
+        data['albums'].pop(i)
 
     with open("cache.json", 'w') as outfile:
         outfile.write(json.dumps(data, indent=4))
