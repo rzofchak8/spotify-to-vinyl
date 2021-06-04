@@ -14,6 +14,6 @@ cd /home/{USERNAME}/{PATH}/{TO}/{FOLDER}
 source /home/{USERNAME}/{PATH}/{TO}/{FOLDER}/env/bin/activate
 /home/{USERNAME}/{PATH}/{TO}/{FOLDER}/env/bin/python3 main.py
 
-# Deactivae environment and keep terminal open
+# Deactivate environment and keep terminal open
 deactivate
 bash
