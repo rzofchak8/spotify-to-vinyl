@@ -1,8 +1,16 @@
+# Script changes
+bin/
+
+# Environments
 env/
-requests.txt
-credentials.txt
-credentials.json
-cache.json
-.cache
-test.json
+
+# Compiled files
 utils/__pycache__
+
+# User info
+.cache
+cache.json
+credentials.json
+
+# Notes
+requests.txt
