@@ -1,6 +1,9 @@
 # Script changes
 bin/
 
+# Logs
+log/
+
 # Environments
 env/
 
