@@ -2,7 +2,7 @@
 bin/
 
 # Logs
-log/
+logs/
 
 # Environments
 env/
@@ -17,3 +17,4 @@ credentials.json
 
 # Notes
 requests.txt
+DEVELOPMENT.md
