@@ -1,23 +1,32 @@
 #!/bin/bash
-# Wait to make sure everything loads okay
+# Wait 5 seconds to make sure everything loads okay
 sleep 5
 echo "Running Spotify to Discogs script..."
 
 # Log runs to make sure that it does on startups
 TIMESTAMP=`date "+%Y-%m-%d %H:%M:%S"`
-echo "$TIMESTAMP - program was run" >> /{PATH}/{TO}/{FOLDER}/logs/script.log
+echo "$TIMESTAMP - program was run" >> /{PATH}/{TO}/spotify-to-vinyl/logs/script.log
 
 # Move into program directory
-cd /{PATH}/{TO}/{FOLDER}
+cd /{PATH}/{TO}/spotify-to-vinyl
 
-# Activate environment and run
-source /{PATH}/{TO}/{FOLDER}/env/bin/activate
-if /{PATH}/{TO}/{FOLDER}/env/bin/python3 main.py ; then
+
+# Activate environment and run; create virtual environment if necessary
+if [ ! -d /{PATH}/{TO}/spotify-to-vinyl/env ]; then
+    python3 -m venv env
+    source /{PATH}/{TO}/spotify-to-vinyl/env/bin/activate
+    pip install -r requirements.txt
+else
+    source /{PATH}/{TO}/spotify-to-vinyl/env/bin/activate
+fi
+
+# Run program and log result
+if /{PATH}/{TO}/spotify-to-vinyl/env/bin/python3 main.py ; then
     TIMESTAMP=`date "+%Y-%m-%d %H:%M:%S"`
-    echo "$TIMESTAMP - program succeded" >> /{PATH}/{TO}/{FOLDER}/logs/script.log
+    echo "$TIMESTAMP - program succeded" >> /{PATH}/{TO}/spotify-to-vinyl/logs/script.log
 else
     TIMESTAMP=`date "+%Y-%m-%d %H:%M:%S"`
-    echo "$TIMESTAMP - program failed" >> /{PATH}/{TO}/{FOLDER}/logs/script.log
+    echo "$TIMESTAMP - program failed" >> /{PATH}/{TO}/spotify-to-vinyl/logs/script.log
 fi
 
 # Deactivate environment and keep terminal open
