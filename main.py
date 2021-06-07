@@ -10,13 +10,14 @@ import logging.config
 from utils.core import (
     setup,
     get_spotify_session,
-    get_discogs_session,
+    get_discogs_username,
     find_user_playlist,
     get_albums,
     make_vinyl_list,
 )
 
 logger = logging.getLogger('')
+
 
 def main():
     """Driver function."""
@@ -47,7 +48,7 @@ def main():
         }
     }
     logging.config.dictConfig(logging_config)
-    
+
     # If credentials file does not exist create it
     if not os.path.isfile("credentials.json"):
         open("credentials.json", 'x')
@@ -64,8 +65,8 @@ def main():
     # start spotify session
     sp_session = get_spotify_session(user_creds)
 
-    # start discogs session
-    username = get_discogs_session(user_creds)
+    # verify discogs token
+    username, user_creds = get_discogs_username(user_creds)
 
     print("updating...")
 
@@ -75,6 +76,11 @@ def main():
 
     # update discogs wantlist
     make_vinyl_list(song_count, username, user_creds)
+
+    # write any new data
+    with open("credentials.json", 'w') as outfile:
+        outfile.write(json.dumps(user_creds, indent=4))
+
     print("done")
     logger.info("Program finished successfully")
 

@@ -2,23 +2,69 @@
 
 # Standard library imports
 import os
+import sys
 import json
 import time
-import webbrowser
-import socket
 import logging
 from datetime import datetime
 
 # Third party imports
 import spotipy
 import requests
-import discogs_client
-from requests_oauthlib import OAuth1
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth
 
 # define top level module logger
 logger = logging.getLogger(__name__)
+
+
+def discogs_get(url, auth, params=None):
+    """Help make GET requests to Discogs api."""
+    header = {
+        "Authorization": "Discogs token={}".format(auth)
+    }
+
+    try:
+        response = requests.get(url, params=params, headers=header)
+
+        response.raise_for_status()
+        results = response.json()
+
+    except requests.RequestException as request_err:
+        response = request_err.response.json()
+
+        logger.error("Requests error for GET request to: %s with error message %s",
+                     url, json.dumps(response))
+
+    except ValueError:
+        results = None
+        logger.error("Request for url: %s returned no values", url)
+
+    return results
+
+
+def discogs_put(url, auth):
+    """Help make PUT requests to Discogs api."""
+    header = {
+        "Authorization": "Discogs token={}".format(auth)
+    }
+
+    try:
+        response = requests.put(url, headers=header)
+
+        response.raise_for_status()
+
+    except requests.RequestException as request_err:
+        response = request_err.response.json()
+
+        logger.error("Requests error for GET request to: %s with error message %s",
+                     url, json.dumps(response))
+
+    except ValueError:
+        response = None
+
+    return response
+
 
 def setup():
     """Create initial files and gather variables."""
@@ -38,12 +84,14 @@ def setup():
         print("Welcome! Please enter a playlist that you want to pull vinyl" +
               " from (you must own or follow this playlist).")
         print("This program will run once a day, on startup.")
+
         playlist_name = input("playlist name: ").lower()
 
         criteria = int(input("How many songs from an album should the " +
                              "playlist have for that album to be added to" +
                              " your wishlist? (1-5): "))
         criteria = max(min(criteria, 5), 1)
+
         logger.exception("Handled new cache info")
 
     logger.info("Using playlist: %s with %s song(s) needed for discogs",
@@ -61,87 +109,37 @@ def get_spotify_session(user_creds):
 
     try:
         session = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope,
-                                                     client_id=user_creds['spotify_cid'],
-                                                     client_secret=user_creds['spotify_csecret'],
-                                                     redirect_uri=user_creds['spotify_uri']))
+                                  client_id=user_creds['spotify_cid'],
+                                  client_secret=user_creds['spotify_csecret'],
+                                  redirect_uri=user_creds['spotify_uri']))
         logger.info("Acquired Spotify api session")
         return session
-    
+
     except SpotifyException as err:
         logger.exception(err.reason)
         return None
 
 
-def authorize_discogs_user(url, d_api, user_creds):
-    """Get authorization credentials for Discogs API."""
-    # get the user to authenticate this program
-    webbrowser.open(url)
-
-    # we automatically get credentials by listening locally
-    sock = socket.socket()
-    sock.bind(('localhost', 9002))
-    sock.listen()
-    sock.settimeout(1)
-
-    logger.info("Bound socket to port 9002")
-    while True:
-        try:
-            conn = sock.accept()[0]
-            try:
-                data = conn.recv(4096)
-                if not data:
-                    break
-            except socket.timeout:
-                continue
-            conn.close()
-            break
-        except socket.timeout:
-            continue
-
-    sock.close()
-
-    # scrub data for the verifier
-    data = data.decode('utf-8')
-    index = data.find("oauth_verifier") + len("oauth_verifier") + 1
-    data = data[index:]
-    index = data.find(' ')
-    verifier = data[:index]
-
-    # TODO: store client id and secret in a different manner
-    # authenticate user through discogs api library, save details
-    token, secret = d_api.get_access_token(verifier)
-
-    user_creds['user_token'] = token
-    user_creds['user_secret'] = secret
-    logging.info("Socket closed, discogs credentials gathered")
-    return user_creds
-
-
-# TODO: store client id and secret in a different manner
-def get_discogs_session(user_creds):
+def get_discogs_username(user_creds):
     """Get or instantiate Discogs API session, return username."""
     try:
-        token = user_creds['user_token']
-        secret = user_creds['user_secret']
-
-        d_api = discogs_client.Client('my_user_agent/1.0', consumer_key=user_creds['discogs_ckey'],
-                                      consumer_secret=user_creds['discogs_csecret'],
-                                      token=token, secret=secret)
+        personal_token = user_creds['personal_discogs_user_token']
 
     except IndexError:
+        personal_token = input(("Please enter your Discogs personal access token (this is only " +
+                                "saved locally in credentials.json): "))
 
-        d_api = discogs_client.Client('my_user_agent/1.0', consumer_key=user_creds['discogs_ckey'],
-                                      consumer_secret=user_creds['discogs_csecret'])
+        user_creds['personal_discogs_user_token'] = personal_token
 
-        url = d_api.get_authorize_url(user_creds['discogs_auth_url'])[2]
-        user_creds = authorize_discogs_user(url, d_api, user_creds)
-
-    logger.info("Acquired Discogs api session")
     url = "https://api.discogs.com/oauth/identity"
-    auth = OAuth1(user_creds['discogs_ckey'], user_creds['discogs_csecret'],
-                  user_creds['user_token'], user_creds['user_secret'])
 
-    username = requests.get(url, auth=auth).json()
+    username = discogs_get(url, personal_token)
+
+    if username is None:
+        print("Error in finding discogs profile.")
+        print("Please make sure your personal access token is correct." +
+              " You may need to delete it from credentials.json")
+        sys.exit(1)
 
     return username['username'], user_creds
 
@@ -288,7 +286,7 @@ def get_albums(pid, sp_api, offset=0):
         albums['time_accessed'] = time.time()
         with open("cache.json", 'w') as outfile:
             outfile.write(json.dumps(albums, indent=4))
-    
+
     logger.info("Playlist albums updated")
 
 
@@ -311,20 +309,18 @@ def get_album_id(album, user_creds, new=True):
         'type':          "release"
     }
 
-    # TODO: store client id and secret in a different manner
     url = "https://api.discogs.com/database/search"
 
-    auth = OAuth1(user_creds['discogs_ckey'], user_creds['discogs_csecret'],
-                  user_creds['user_token'], user_creds['user_secret'])
+    results = discogs_get(url, user_creds['personal_discogs_user_token'], params)
 
-    # query each album in discogs api
-    search = requests.get(url, params=params, auth=auth).json()
-
-    with open("test.json", 'w') as outfile:
-        outfile.write(json.dumps(search, indent=2))
+    if results is None:
+        print("Error in finding album.")
+        print("Please make sure your personal access token is correct." +
+              " You may need to delete it from credentials.json")
+        sys.exit(1)
 
     # return -1 on album dne, but not before trying once more
-    if len(search['results']) == 0:
+    if len(results['results']) == 0:
 
         if not new:
             return -1
@@ -333,7 +329,7 @@ def get_album_id(album, user_creds, new=True):
 
     # for simplicity, we will take the first result
     else:
-        discogs_id = search['results'][0]['id']
+        discogs_id = results['results'][0]['id']
 
     return discogs_id
 
@@ -354,8 +350,9 @@ def add_to_wishlist(album, username, user_creds):
 
         album['attempts'] += 1
         logger.info("Could not find album %s in Discogs library", album['name'])
-        # we will try the album 10 times before giving up
-        if album['attempts'] > 10:
+
+        # we will try the album 14 times before giving up
+        if album['attempts'] > 14:
             album['attempts'] = -1
 
     # finding a real id allows us to put to wishlist
@@ -363,17 +360,13 @@ def add_to_wishlist(album, username, user_creds):
 
         album['discogs_id'] = discogs_id
 
-        # TODO: store client id and secret in a different manner
-        auth = OAuth1(user_creds['discogs_ckey'], user_creds['discogs_csecret'],
-                      user_creds['user_token'], user_creds['user_secret'])
-
         url = "https://api.discogs.com/users/" + username + "/wants/" + str(discogs_id)
-        results = requests.put(url, auth=auth)
 
-        # for any discogs error we will return -2
+        results = discogs_put(url, user_creds['personal_discogs_user_token'])
+
         if results.status_code != 201:
-            logger.error("Error in adding album %s to playlist", album['name'])
-            print("Error in adding album to wishlist")
+            logger.error("Error in PUT request to %s with album %s", url, album['name'])
+            print("Error in adding album {} to wishlist".format(album['name']))
             album['attempts'] = -2
 
         else:
