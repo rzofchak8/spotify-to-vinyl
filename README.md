@@ -1,15 +1,9 @@
-# Vinyl project (no name yet)
----
-**A Python project to help grow a vinyl collection using streaming data**
+# Spotify to Vinyl - Local App Edition
 
-*Currently Work in Progress*
-
-## rough plan of development:
----
-Plan can be found in [development.txt](https://github.com/rzofchak8/development.txt)
+This repository contains a Python program that will take albums from a Spotify playlist and add them to your Discogs wantlist.
 
 ## How to use
----
+
 TODO
 
 ## How to install
