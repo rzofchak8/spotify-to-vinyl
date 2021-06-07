@@ -10,7 +10,6 @@ echo "$TIMESTAMP - program was run" >> /{PATH}/{TO}/spotify-to-vinyl/logs/script
 # Move into program directory
 cd /{PATH}/{TO}/spotify-to-vinyl
 
-
 # Activate environment and run; create virtual environment if necessary
 if [ ! -d /{PATH}/{TO}/spotify-to-vinyl/env ]; then
     python3 -m venv env
