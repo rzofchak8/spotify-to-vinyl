@@ -1,4 +1,4 @@
-# Spotify to Vinyl - Local App Edition
+# Spotify to Vinyl - Local App version
 
 This repository contains a Python program that will take albums from a Spotify playlist and add them to your Discogs wantlist.
 
