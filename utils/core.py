@@ -26,13 +26,11 @@ def discogs_get(url, auth, params=None):
 
     try:
         response = requests.get(url, params=params, headers=header)
-
         response.raise_for_status()
         results = response.json()
 
     except requests.RequestException as request_err:
         response = request_err.response.json()
-
         logger.error("Requests error for GET request to: %s with error message %s",
                      url, json.dumps(response))
 
@@ -40,6 +38,8 @@ def discogs_get(url, auth, params=None):
         results = None
         logger.error("Request for url: %s returned no values", url)
 
+    # Discogs rate-limit: 60 requests per minute
+    time.sleep(1)
     return results
 
 
@@ -63,6 +63,8 @@ def discogs_put(url, auth):
     except ValueError:
         response = None
 
+    # Discogs rate-limit: 60 requests per minute
+    time.sleep(1)
     return response
 
 
@@ -126,8 +128,9 @@ def get_discogs_username(user_creds):
         personal_token = user_creds['personal_discogs_user_token']
 
     except IndexError:
-        personal_token = input(("Please enter your Discogs personal access token (this is only " +
-                                "saved locally in credentials.json): "))
+        personal_token = input(("Please enter your Discogs personal access " +
+                                "token (this is only saved locally " +
+                                "in credentials.json): "))
 
         user_creds['personal_discogs_user_token'] = personal_token
 
@@ -161,19 +164,21 @@ def find_user_playlist(playlist_name, song_count, sp_api, offset=0):
     results = sp_api.current_user_playlists(offset=offset)
 
     # get dict of playlist you are trying to find
-    goal = next((sub for sub in results['items'] if sub['name'].lower() == playlist_name), None)
+    goal = next((sub for sub in results['items']
+                 if sub['name'].lower() == playlist_name), None)
 
     # we widen the search if there are more results and it was not found
     if goal is None:
         if results['next'] is not None:
-            find_user_playlist(playlist_name, song_count, sp_api, offset=offset+50)
+            find_user_playlist(playlist_name, song_count,
+                               sp_api, offset=offset+50)
 
         else:
             logger.info("Playlist could not be found")
             print("Playlist cannot be found :(")
             return -1
 
-    # playlist found, sanity check to ensure the playlist hasn't been seen before
+    # playlist found, sanity check to ensure the playlist hasn't been seen
     elif 'id' not in playlist_info or playlist_info['id'] != goal['id']:
 
         playlist_info = {
@@ -206,7 +211,8 @@ def get_album_year(album_ids, albums, sp_api):
 
     for obj in results['albums']:
 
-        idx = next(i for i, item in enumerate(albums['albums']) if item['id'] == obj['id'])
+        idx = next(i for i, item in enumerate(albums['albums'])
+                   if item['id'] == obj['id'])
         albums['albums'][idx]['year'] = obj['release_date'][:4]
 
     return [], albums
@@ -214,9 +220,11 @@ def get_album_year(album_ids, albums, sp_api):
 
 def get_albums(pid, sp_api, offset=0):
     """Retrieve album information from Spotify api."""
-    fields = "items(added_at, track(album(name, id)), track.artists(name)), next"
+    fields = ("items(added_at, track(album(name, id))," +
+              "track.artists(name)), next")
 
-    results = sp_api.playlist_items(pid, fields=fields, offset=offset, market="from_token",
+    results = sp_api.playlist_items(pid, fields=fields, offset=offset,
+                                    market="from_token",
                                     additional_types=['track'])
 
     with open("cache.json", 'r') as infile:
@@ -231,7 +239,8 @@ def get_albums(pid, sp_api, offset=0):
 
     for item in results['items']:
 
-        timestamp = datetime.strptime(item['added_at'], '%Y-%m-%dT%H:%M:%SZ').timestamp()
+        timestamp = datetime.strptime(item['added_at'],
+                                      '%Y-%m-%dT%H:%M:%SZ').timestamp()
         info = item['track']
 
         artists = []
@@ -254,9 +263,14 @@ def get_albums(pid, sp_api, offset=0):
 
         # else, we have a new album
         elif added is None:
+            
+            # attempt at stripping different editions of album
+            index = info['album']['name'].rfind(" (")
+            if index == -1:
+                index = len(info['album']['name'])
 
             album_info = {
-                'name':       info['album']['name'],
+                'name':       info['album']['name'][:index],
                 'id':         info['album']['id'],
                 'song_count': 1,
                 'attempts':   0,
@@ -290,7 +304,28 @@ def get_albums(pid, sp_api, offset=0):
     logger.info("Playlist albums updated")
 
 
-def get_album_id(album, user_creds, new=True):
+def find_proper_id(items, title):
+    """Iterate through results to find correct Discogs album id."""
+    owners = -1
+    discogs_id = -1
+    title = title.replace(" ", "")
+    #print(json.dumps(items, indent=2))
+    for album in items:
+
+        # title format: artist - title
+        index = album['title'].rfind(" - ") + 3
+
+        if (album['community']['have'] > owners and 
+            album['title'][index:].lower().replace(" ", "") == title.lower()):
+                #print("HERE")
+                discogs_id = album['id']
+                owners = album['community']['have']
+
+    #print(discogs_id)
+    return discogs_id
+
+
+def get_album_id(album, user_creds, new=True, year_add=0):
     """Retrieve album information from Discogs."""
     # try searching without artist name, as an edge case
     # see: STRFKR
@@ -298,20 +333,24 @@ def get_album_id(album, user_creds, new=True):
         artist = ""
 
     else:
-        artist = album['artists'][0]
+        try:
+            artist = album['artists'][0]
+        except IndexError:
+            artist = ""
 
     params = {
         'release_title': album['name'],
         'artist':        artist,
-        'year':          album['year'],
-        'format':        "Vinyl LP Album",
-        'country':       "US",
+        'year':          str(int(album['year']) + year_add),
+        'format':        "vinyl lp",
         'type':          "release"
     }
 
     url = "https://api.discogs.com/database/search"
 
-    results = discogs_get(url, user_creds['personal_discogs_user_token'], params)
+    results = discogs_get(url, 
+                          user_creds['personal_discogs_user_token'],
+                          params)
 
     if results is None:
         print("Error in finding album.")
@@ -319,17 +358,28 @@ def get_album_id(album, user_creds, new=True):
               " You may need to delete it from credentials.json")
         sys.exit(1)
 
-    # return -1 on album dne, but not before trying once more
+    # try 4 times
     if len(results['results']) == 0:
 
-        if not new:
+        if not new and year_add == 1:
             return -1
 
-        discogs_id = get_album_id(album, user_creds, False)
+        # check the next year
+        elif new and year_add == 0:
+            discogs_id = get_album_id(album, user_creds, year_add=1)
 
-    # for simplicity, we will take the first result
+        # remove the artist
+        elif new and year_add == 1:
+            discogs_id = get_album_id(album, user_creds, False)
+        
+        # remove the artist and check the next year
+        else:
+            discogs_id = get_album_id(album, user_creds, False, 1)
+
+    # need to find most relavant result
     else:
-        discogs_id = results['results'][0]['id']
+        discogs_id = find_proper_id(results['results'], album['name'].lower())
+
 
     return discogs_id
 
@@ -342,14 +392,12 @@ def add_to_wishlist(album, username, user_creds):
     except KeyError:
         discogs_id = get_album_id(album, user_creds)
 
-    # self rate-limiting for discogs api
-    time.sleep(0.7)
-
     # in the case of an album that may end up in Discogs later
     if discogs_id == -1:
 
         album['attempts'] += 1
-        logger.info("Could not find album %s in Discogs library", album['name'])
+        logger.info("Could not find album %s in Discogs library",
+                    album['name'])
 
         # we will try the album 14 times before giving up
         if album['attempts'] > 14:
@@ -360,12 +408,14 @@ def add_to_wishlist(album, username, user_creds):
 
         album['discogs_id'] = discogs_id
 
-        url = "https://api.discogs.com/users/" + username + "/wants/" + str(discogs_id)
+        url = ("https://api.discogs.com/users/" + username
+               + "/wants/" + str(discogs_id))
 
         results = discogs_put(url, user_creds['personal_discogs_user_token'])
 
         if results.status_code != 201:
-            logger.error("Error in PUT request to %s with album %s", url, album['name'])
+            logger.error("Error in PUT request to %s with album %s",
+                         url, album['name'])
             print("Error in adding album {} to wishlist".format(album['name']))
             album['attempts'] = -2
 

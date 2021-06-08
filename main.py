@@ -14,6 +14,8 @@ from utils.core import (
     find_user_playlist,
     get_albums,
     make_vinyl_list,
+    discogs_get,
+    find_proper_id,
 )
 
 logger = logging.getLogger('')
@@ -68,7 +70,8 @@ def main():
     # verify discogs token
     username, user_creds = get_discogs_username(user_creds)
 
-    print("updating...")
+    print("Please be patient, the program speed is limited by Discogs api.")
+    print("updating... (large playlists may take a while)")
 
     # get albums in playlist from spotify
     pid = find_user_playlist(playlist_name, song_count, sp_session)
@@ -87,3 +90,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
