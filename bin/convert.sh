@@ -22,7 +22,7 @@ fi
 # Run program and log result
 if /{PATH}/{TO}/spotify-to-vinyl/env/bin/python3 main.py ; then
     TIMESTAMP=`date "+%Y-%m-%d %H:%M:%S"`
-    echo "$TIMESTAMP - program succeded" >> /{PATH}/{TO}/spotify-to-vinyl/logs/script.log
+    echo "$TIMESTAMP - program was successful" >> /{PATH}/{TO}/spotify-to-vinyl/logs/script.log
 else
     TIMESTAMP=`date "+%Y-%m-%d %H:%M:%S"`
     echo "$TIMESTAMP - program failed" >> /{PATH}/{TO}/spotify-to-vinyl/logs/script.log
