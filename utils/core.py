@@ -9,6 +9,7 @@ import logging
 
 # Third party imports
 import requests
+import jellyfish
 
 # define top level module logger
 logger = logging.getLogger(__name__)
@@ -102,13 +103,15 @@ def get_discogs_username(user_creds):
     try:
         personal_token = user_creds['personal_discogs_user_token']
 
-    except IndexError:
+    except KeyError:
         personal_token = input(("Please enter your Discogs personal access " +
                                 "token (this is only saved locally " +
                                 "in credentials.json): "))
 
         user_creds['personal_discogs_user_token'] = personal_token
-
+        with open("credentials.json", 'w') as outfile:
+            outfile.write(json.dumps(user_creds, indent=4))
+ 
     url = "https://api.discogs.com/oauth/identity"
 
     username = discogs_get(url, personal_token)

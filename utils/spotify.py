@@ -1,10 +1,10 @@
 """Spotify-related functions."""
 import os
+import sys
 import json
 import uuid
 import logging
 import time
-import socket
 from datetime import datetime
 
 
@@ -15,31 +15,6 @@ from spotipy.exceptions import SpotifyException
 
 # define top level module logger
 logger = logging.getLogger(__name__)
-
-
-def wait_for_auth():
-    """Wait for user consent to authentication."""
-    sock = socket.socket()
-    sock.bind(('localhost', 9001))
-    sock.listen()
-    sock.settimeout(1)
-
-    logger.info("Bound socket to port 9001")
-    while True:
-        try:
-            conn = sock.accept()[0]
-            try:
-                data = conn.recv(4096)
-                if not data:
-                    break
-            except socket.timeout:
-                continue
-            conn.close()
-            break
-        except socket.timeout:
-            continue
-
-    sock.close()
 
 
 def spotify_session(user_creds):
@@ -78,8 +53,6 @@ def find_user_playlist(playlist_name, song_count, sp_api, offset=0):
         playlist_info = {}
 
     results = sp_api.current_user_playlists(offset=offset)
-    if not os.path.isfile('.cache'):
-        wait_for_auth()
 
     # get dict of playlist you are trying to find
     goal = next((sub for sub in results['items']
@@ -93,8 +66,9 @@ def find_user_playlist(playlist_name, song_count, sp_api, offset=0):
 
         else:
             logger.info("Playlist could not be found")
-            print("Playlist cannot be found :(")
-            return -1
+            print("Playlist cannot be found. Please try another playlist " +
+                  "(or check spelling).")
+            sys.exit(1)
 
     # playlist found, sanity check to ensure the playlist hasn't been seen
     elif 'id' not in playlist_info or playlist_info['id'] != goal['id']:

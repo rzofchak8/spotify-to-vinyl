@@ -64,6 +64,7 @@ def main():
     if sp_session is None:
         print("Error in session creation. please try again.")
         logger.error("Spotify session getting returned None")
+        exit(1)
 
     # verify discogs token
     username, user_creds = get_discogs_username(user_creds)
@@ -77,10 +78,6 @@ def main():
 
     # update discogs wantlist
     make_vinyl_list(song_count, username, user_creds)
-
-    # write any new data
-    with open("credentials.json", 'w') as outfile:
-        outfile.write(json.dumps(user_creds, indent=4))
 
     print("done")
     logger.info("Program finished successfully")
