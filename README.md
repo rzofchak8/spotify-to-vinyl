@@ -29,28 +29,28 @@ Run the script once `./bin/convert/sh` to enter data (playlist name, song count,
 
 ## Configuration
 
-#### Discogs-token
+### Discogs-token
 
 Your Discogs personal access token can be found in your [Discogs settings](https://www.discogs.com/settings/developers). 
 * Under **Just need a personal access token?** select *Generate token*
 * Copy and paste that value into the program terminal when prompted, OR
 * Add another entry into your [credentials.json](credentials.json) file: `"personal_discogs_user_token": "{YOUR TOKEN HERE}"`
 
-#### Startup 
+### Startup 
 
 There are different methods per OS to add a program to run on startup.
 
-###### Ubuntu
+##### Ubuntu
 1. Open **Startup Applications Preferences** from your applications menu;
 1. Add a new program, name it **Spotify to Vinyl**;
 1. Enter command `gnome-terminal --command '/{ABS PATH}/{TO}/record_proj/bin/convert.sh'`;
 1. Hit save.
 
-###### Windows
+##### Windows
 
 TODO
 
-###### OS X
+##### OS X
 
 TODO
 ## Limitations
