@@ -33,3 +33,4 @@ fi
 # Deactivate environment and keep terminal open
 deactivate
 sleep 5
+exit
