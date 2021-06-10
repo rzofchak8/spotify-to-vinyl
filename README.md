@@ -38,7 +38,7 @@ Your Discogs personal access token can be found in your [Discogs settings](https
 
 ### Startup 
 
-There are different methods per OS to add a program to run on startup.
+There are different methods per OS to add a program to run on startup:
 
 ##### Ubuntu
 1. Open **Startup Applications Preferences** from your applications menu;
