@@ -30,4 +30,4 @@ fi
 
 # Deactivate environment and keep terminal open
 deactivate
-bash
+sleep 5
