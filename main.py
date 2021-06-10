@@ -2,6 +2,7 @@
 
 # Standard imports
 import os
+import sys
 import json
 import logging
 import logging.config
@@ -64,7 +65,7 @@ def main():
     if sp_session is None:
         print("Error in session creation. please try again.")
         logger.error("Spotify session getting returned None")
-        exit(1)
+        sys.exit(1)
 
     # verify discogs token
     username, user_creds = get_discogs_username(user_creds)
