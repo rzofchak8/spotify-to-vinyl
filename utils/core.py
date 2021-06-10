@@ -111,7 +111,7 @@ def get_discogs_username(user_creds):
         user_creds['personal_discogs_user_token'] = personal_token
         with open("credentials.json", 'w') as outfile:
             outfile.write(json.dumps(user_creds, indent=4))
- 
+
     url = "https://api.discogs.com/oauth/identity"
 
     username = discogs_get(url, personal_token)
@@ -125,45 +125,13 @@ def get_discogs_username(user_creds):
     return username['username'], user_creds
 
 
-def find_proper_id(items, title):
-    """Iterate through results to find correct Discogs album id."""
-    owners = -1
-    discogs_id = -1
-    title = title.replace(" ", "")
-
-    for album in items:
-
-        # title format: artist - title
-        index = album['title'].rfind(" - ") + 3
-
-        if (album['community']['have'] > owners and
-           album['title'][index:].lower().replace(" ", "") == title.lower()):
-
-            discogs_id = album['id']
-            owners = album['community']['have']
-
-    return discogs_id
-
-
-def get_album_id(album, user_creds, new=True, year_add=0):
+def get_album_id(album, user_creds):
     """Retrieve album information from Discogs."""
-    # try searching without artist name, as an edge case
-    # see: STRFKR
-    if not new:
-        artist = ""
-
-    else:
-        try:
-            artist = album['artists'][0]
-        except IndexError:
-            artist = ""
-
     params = {
         'release_title': album['name'],
-        'artist':        artist,
-        'year':          str(int(album['year']) + year_add),
         'format':        "vinyl lp",
-        'type':          "release"
+        'type':          "release",
+        'per_page':      100
     }
 
     url = "https://api.discogs.com/database/search"
@@ -178,27 +146,66 @@ def get_album_id(album, user_creds, new=True, year_add=0):
               " You may need to delete it from credentials.json")
         sys.exit(1)
 
-    # try 4 times
     if len(results['results']) == 0:
 
-        if not new and year_add == 1:
-            return -1
+        discogs_id = -1
 
-        # check the next year
-        if new and year_add == 0:
-            discogs_id = get_album_id(album, user_creds, year_add=1)
-
-        # remove the artist
-        elif new and year_add == 1:
-            discogs_id = get_album_id(album, user_creds, False)
-
-        # remove the artist and check the next year
-        else:
-            discogs_id = get_album_id(album, user_creds, False, 1)
-
-    # need to find most relavant result
+    # get most relevant result from results list
     else:
-        discogs_id = find_proper_id(results['results'], album['name'].lower())
+
+        discogs_id = album_id(results['results'], album)
+
+    return discogs_id
+
+
+def album_id(items, sp_album):
+    """Iterate through results to find correct Discogs album id."""
+    try:
+        artist = sp_album['artists'][0].lower().replace(" ", "")
+    except IndexError:
+        artist = ""
+
+    owners = -1
+    discogs_id = -1
+    similarity = 0
+    title = sp_album['name'].lower().replace(" ", "")
+    year = int(sp_album['year'])
+    prev_year = 0
+
+    for album in items:
+
+        try:
+            disc_year = int(album['year'])
+        except KeyError:
+            continue
+
+        # title format: artist - title
+        index = album['title'].rfind(" - ")
+        disc_artist = album['title'][:index].lower().replace(" ", "")
+        disc_title = album['title'][index+3:].lower().replace(" ", "")
+
+        # calculate string similarity for artist spelling deviations
+        jw_similarity = jellyfish.jaro_winkler_similarity(artist, disc_artist)
+
+        # evaluate on same artist or better-matched artist
+        if jw_similarity >= similarity:
+
+            # refine best choice for album
+            if (jw_similarity == similarity and disc_title == title and
+               album['community']['have'] > owners and
+               abs(disc_year - year) <= abs(year - prev_year)):
+
+                owners = album['community']['have']
+                discogs_id = album['id']
+                prev_year = disc_year
+
+            # more closely-matched artist
+            elif (jw_similarity > similarity and disc_title == title and
+                  abs(disc_year - year) <= abs(year - prev_year)):
+
+                similarity = jw_similarity
+                owners = album['community']['have']
+                discogs_id = album['id']
 
     return discogs_id
 
