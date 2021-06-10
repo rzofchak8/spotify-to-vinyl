@@ -58,7 +58,6 @@ TODO
  * Of course, you will need a Spotify account, as well as a Discogs account in order to work.
  * Currently, you must be following the playlist you wish to convert. Private and collaborative playlists should work fine, as long as you follow them. Same goes with any public playlist.
  * Discogs API is rate-limited to [60 queries per minute](https://www.discogs.com/developers/#page:home,header:home-rate-limiting). Unfortunately, this means that this program will run rather slowly, especially on the first execution. When updating, there are far fewer calls to the API that have to be made, so it will be much faster in future executions.
- * In relation to the above, there are edge cases that there was an attempt to cover. For example, few artists go under a different name on Spotify than they do on Discogs. This program tries to be as accurate as possible, and as a result goes slower due to an increased number of Discogs API calls. Unfortunately, some cases have still not been discovered. Feel free to mess around with this as you see fit.  
  * Singles will not play well with this program; if the release is not tied to any album, you may get a few random albums in your wantlist because of this.  
 
 ## Contribution
