@@ -189,7 +189,7 @@ def album_id(items, sp_album):
 
                     owners = album['community']['have']
                     discogs_id = album['id']
-                    similarity = 0.85
+                    similarity = jw_similarity
 
             # If they are the same and this release is more popular
             elif (jw_similarity == similarity and
