@@ -15,6 +15,7 @@ utils/__pycache__
 cache.json
 credentials.json
 
-# Notes
+# Notes and test cases
 requests.txt
 DEVELOPMENT.md
+test_albums.json
