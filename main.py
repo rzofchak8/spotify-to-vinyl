@@ -12,6 +12,7 @@ from utils.core import (
     setup,
     get_discogs_username,
     make_vinyl_list,
+    get_album_ids
 )
 
 from utils.spotify import (
@@ -70,12 +71,14 @@ def main():
     # verify discogs token
     username, user_creds = get_discogs_username(user_creds)
 
+    print("\nupdating Spotify playlist...")
+
     # get albums in playlist from spotify
     pid = find_user_playlist(playlist_name, song_count, sp_session)
     get_albums(pid, sp_session)
 
+    print("\nupdating Discogs wantlist... (large playlists may take a while)")
     print("Please be patient, the program speed is limited by Discogs api.")
-    print("updating... (large playlists may take a while)")
 
     # update discogs wantlist
     make_vinyl_list(song_count, username, user_creds)
