@@ -125,7 +125,7 @@ def get_discogs_username(user_creds):
     return username['username'], user_creds
 
 
-def get_album_id(album, user_creds):
+def get_album_ids(album, user_creds):
     """Retrieve album information from Discogs."""
     params = {
         'release_title': album['name'],
@@ -169,15 +169,8 @@ def album_id(items, sp_album):
     discogs_id = -1
     similarity = 0
     title = sp_album['name'].lower().replace(" ", "")
-    year = int(sp_album['year'])
-    prev_year = 0
 
     for album in items:
-
-        try:
-            disc_year = int(album['year'])
-        except KeyError:
-            continue
 
         # title format: artist - title
         index = album['title'].rfind(" - ")
@@ -187,25 +180,34 @@ def album_id(items, sp_album):
         # calculate string similarity for artist spelling deviations
         jw_similarity = jellyfish.jaro_winkler_similarity(artist, disc_artist)
 
-        # evaluate on same artist or better-matched artist
-        if jw_similarity >= similarity:
+        # comparison for use of symbols in titles (& vs and)
+        if jellyfish.match_rating_comparison(disc_title, title):
 
-            # refine best choice for album
-            if (jw_similarity == similarity and disc_title == title and
-               album['community']['have'] > owners and
-               abs(disc_year - year) <= abs(year - prev_year)):
+            # If they are basically the same, they probably are
+            if jellyfish.match_rating_comparison(artist, disc_artist):
+                if album['community']['have'] > owners:
+
+                    owners = album['community']['have']
+                    discogs_id = album['id']
+                    similarity = 0.85
+
+            # If they are the same and this release is more popular
+            elif (jw_similarity == similarity and
+                  album['community']['have'] > owners):
 
                 owners = album['community']['have']
                 discogs_id = album['id']
-                prev_year = disc_year
 
-            # more closely-matched artist
-            elif (jw_similarity > similarity and disc_title == title and
-                  abs(disc_year - year) <= abs(year - prev_year)):
+            # If a better artist candidate is found
+            elif jw_similarity > similarity:
 
+                owners = album['community']['have']
+                discogs_id = album['id']
                 similarity = jw_similarity
-                owners = album['community']['have']
-                discogs_id = album['id']
+
+    # we havent found the artist if the name is not similar enough
+    if similarity < 0.85:
+        return -1
 
     return discogs_id
 
@@ -216,7 +218,7 @@ def add_to_wishlist(album, username, user_creds):
         discogs_id = album['discogs_id']
 
     except KeyError:
-        discogs_id = get_album_id(album, user_creds)
+        discogs_id = get_album_ids(album, user_creds)
 
     # in the case of an album that may end up in Discogs later
     if discogs_id == -1:

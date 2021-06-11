@@ -17,7 +17,7 @@ from utils.core import (
 from utils.spotify import (
     spotify_session,
     find_user_playlist,
-    get_albums
+    get_albums,
 )
 
 logger = logging.getLogger('')
