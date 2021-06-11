@@ -61,7 +61,7 @@ $ sudo apt install python3-venv
 1. To run this program on start, open Task Scheduler;
 1. Create a new task:
 * Name: "Spotify to Vinyl"
-* Trigger: New -> Log on
+* Trigger: New -> At log on
 * Action: New -> Start Program -> Script : "wsl" -> Args: "`/{PATH}/{TO}/{convert.sh}`"
 1. Once this is saved, you are all set!
 
