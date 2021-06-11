@@ -19,8 +19,8 @@ You will have to give this program permission to use your Spotify and Discogs ac
 
 1. Some sort of bash terminal is required;
 1. Make sure you can create Python virual environments by typing `sudo apt install python3-venv` in your terminal;
-1. After cloning, edit [convert.sh](convert.sh) so ALL the **absolute paths** to the files are available. For example: `/{PATH}/{TO}/spotify-to-vinyl/logs/script.log` becomes `/home/rzofchak8/spotify-to-vinyl/logs/script.log`;
-1. Add script to startup processes, if desired. This way, the program runs once on startup and then closes, and you do not have to mess with it ([see OS-specific instructions on startup configuration](#Startup)).
+1. After cloning, edit [convert.sh](convert.sh) so ALL the **absolute paths** to the files are available. For example: `/{PATH}/{TO}/spotify-to-vinyl/logs/script.log` becomes `/home/user/spotify-to-vinyl/logs/script.log`;
+1. Add script to startup processes, if desired. This way, the program runs once on startup and then closes, and you do not have to mess with it ([see OS-specific instructions on startup configuration](#Startup)). This is how the program was intended to use.
 
 ## How to run
 
@@ -68,9 +68,10 @@ $ sudo apt install python3-venv
 ##### OS X
 
 TODO
+
 ## Limitations
 
- * Of course, you will need a Spotify account, as well as a Discogs account in order to work.
+ * Of course, you will need a Spotify account as well as a Discogs account.
  * Currently, you must be following the playlist you wish to convert. Private and collaborative playlists should work fine, as long as you follow them. Same goes with any public playlist.
  * Discogs API is rate-limited to [60 queries per minute](https://www.discogs.com/developers/#page:home,header:home-rate-limiting). Unfortunately, this means that this program will run rather slowly, especially on the first execution. When updating, there are far fewer calls to the API that have to be made, so it will be much faster in future executions.
  * Singles will not play well with this program; if the release is not tied to any album, you may get a few random albums in your wantlist because of this.  
