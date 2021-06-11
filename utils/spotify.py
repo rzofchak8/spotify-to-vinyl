@@ -1,5 +1,4 @@
-"""Spotify-related functions."""
-import os
+"""Spotify API-related functions."""
 import sys
 import json
 import uuid
