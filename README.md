@@ -58,12 +58,12 @@ $ sudo apt install libpython3-dev
 $ sudo apt install python3-venv
 ```
 1. You can now run the program from WSL! Note that your directory will be different on WSL, since your PC's file system will be accessed through `/mnt/` (e.g `C:\Desktop` becomes `/mnt/c/desktop`). This is the absolute path that needs to be set in [convert.sh](convert.sh)
-1. To run this program on start, open Task Scheduler;
-1. Create a new task:
+2. To run this program on start, open Task Scheduler;
+3. Create a new task:
 * Name: "Spotify to Vinyl"
 * Trigger: New -> At log on
 * Action: New -> Start Program -> Script : "wsl" -> Args: "`/{PATH}/{TO}/{convert.sh}`"
-1. Once this is saved, you are all set!
+4. Once this is saved, you are all set!
 
 ##### OS X
 
