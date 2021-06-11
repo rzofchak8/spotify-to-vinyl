@@ -28,8 +28,8 @@ def discogs_get(url, auth, params=None):
 
     except requests.RequestException as request_err:
         response = request_err.response.json()
-        logger.error("Requests error for GET request to: %s with error message %s",
-                     url, json.dumps(response))
+        logger.error("Requests error for GET request to: %s with error " +
+                     "message %s", url, json.dumps(response))
 
     except ValueError:
         results = None
@@ -54,8 +54,8 @@ def discogs_put(url, auth):
     except requests.RequestException as request_err:
         response = request_err.response.json()
 
-        logger.error("Requests error for GET request to: %s with error message %s",
-                     url, json.dumps(response))
+        logger.error("Requests error for GET request to: %s with error" +
+                     "message %s", url, json.dumps(response))
 
     except ValueError:
         response = None
@@ -183,7 +183,7 @@ def album_id(items, sp_album):
         # comparison for use of symbols in titles (& vs and)
         if jellyfish.match_rating_comparison(disc_title, title):
 
-            # If they are basically the same, they probably are
+            # If they are basically the same, then match the best artist
             if jellyfish.match_rating_comparison(artist, disc_artist):
                 if album['community']['have'] > owners:
 

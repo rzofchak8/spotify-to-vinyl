@@ -12,7 +12,6 @@ from utils.core import (
     setup,
     get_discogs_username,
     make_vinyl_list,
-    get_album_ids
 )
 
 from utils.spotify import (
