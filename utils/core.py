@@ -125,11 +125,11 @@ def get_discogs_username(user_creds):
     return username['username'], user_creds
 
 
-def get_album_ids(album, user_creds):
+def get_album_ids(album, user_creds, retry=False):
     """Retrieve album information from Discogs."""
     params = {
         'release_title': album['name'],
-        'format':        "vinyl lp",
+        'format':        "vinyl",
         'type':          "release",
         'per_page':      100
     }
@@ -143,12 +143,16 @@ def get_album_ids(album, user_creds):
     if results is None:
         print("Error in finding album.")
         print("Please make sure your personal access token is correct." +
-              " You may need to delete it from credentials.json")
+              " You may need to refresh it in credentials.json")
         sys.exit(1)
 
     if len(results['results']) == 0:
+        if retry:
+            discogs_id = -1
 
-        discogs_id = -1
+        else:
+            album['name'] = album['name'].lower()
+            discogs_id = get_album_ids(album, user_creds, retry=True)
 
     # get most relevant result from results list
     else:
